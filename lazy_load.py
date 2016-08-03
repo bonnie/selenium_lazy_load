@@ -1,13 +1,14 @@
 from selenium import webdriver
 from time import sleep
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 # URL = "https://twitter.com/search?f=tweets&vertical=default&q=trump%20OR%20clinton%20OR%20hillary&src=typd"
 URL = "https://twitter.com/search?f=tweets&vertical=default&q=cantaloupe&src=typd"
 
 
 # the earliest tweet we want
-SEARCH_START = datetime(2016, 8, 2, 21) # year month day hour
+SEARCH_START = datetime(2016, 8, 3, 15) # year month day hour
 
 # got javascript to deal with infinite scroll from
 # http://forumsqa.com/question/help-me-to-locate-an-weblement/
@@ -33,7 +34,7 @@ while earliest_date > SEARCH_START:
   i += 1
 
   # scroll the window to get more tweets
-  driver.execute_script("window.scrollBy(0,1400)")
+  driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
 
   # wait for the reload
   sleep(5)
@@ -43,9 +44,18 @@ while earliest_date > SEARCH_START:
 #     <a role="button" href="#" class="try-again-after-whale">Try again</a>
 #     continue
 
+
+  text = driver.page_source.encode("utf8","ignore")
+
+  print "lines of text", len(text.split('\n'))
+
   # update earliest date
   # <span class="_timestamp js-short-timestamp js-relative-timestamp" data-time="1470197337" data-time-ms="1470197337000" data-long-form="true" aria-hidden="true">14h</span>
-  new_date = driver.find_elements_by_class_name('_timestamp')[-1]
+  new_dates = driver.find_elements_by_class_name('_timestamp')
+  new_date = new_dates[-1]
+
+  print "number of dates", len(new_dates)
+
   new_tstamp = float(new_date.get_attribute('data-time')) # fromtimestamp requires a float
   earliest_date = datetime.fromtimestamp(new_tstamp)
 
@@ -53,6 +63,15 @@ while earliest_date > SEARCH_START:
 
 
 # get the text and parse with beautiful soup
-# text = driver.page_source.encode("utf8","ignore")
+html_text = driver.page_source.encode("utf8","ignore")
 
-#         <div class="js-tweet-text-container">
+soup = BeautifulSoup(html_text, 'html.parser')
+
+tweets = soup.find_all('div', { 'class': 'js-tweet-text-container'})
+
+for tweet in tweets: 
+  print '[', tweet.get_text(), ']'
+
+
+
+        # <div class="js-tweet-text-container">
