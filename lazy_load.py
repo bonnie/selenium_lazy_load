@@ -7,7 +7,7 @@ URL = "https://twitter.com/search?f=tweets&vertical=default&q=cantaloupe&src=typ
 
 
 # the earliest tweet we want
-SEARCH_START = datetime(2016, 8, 2) # year month day
+SEARCH_START = datetime(2016, 8, 2, 21) # year month day hour
 
 # got javascript to deal with infinite scroll from
 # http://forumsqa.com/question/help-me-to-locate-an-weblement/
@@ -24,23 +24,32 @@ driver.get(URL)
 # for now, we'll assume the earliest tweet we've seen so far is now
 earliest_date = datetime.now()
 
+i = 0
+
 
 while earliest_date > SEARCH_START:
+
+  print "iteration", i
+  i += 1
 
   # scroll the window to get more tweets
   driver.execute_script("window.scrollBy(0,1400)")
 
   # wait for the reload
-  sleep(10)
+  sleep(5)
 
 #   # if it didn't reload because of slowness
 #   if :
 #     <a role="button" href="#" class="try-again-after-whale">Try again</a>
 #     continue
 
-#   # update earliest date
-#   # <span class="_timestamp js-short-timestamp js-relative-timestamp" data-time="1470197337" data-time-ms="1470197337000" data-long-form="true" aria-hidden="true">14h</span>
-#   earilest_date = driver.execute_script("document.getElementsByClass[-1]")
+  # update earliest date
+  # <span class="_timestamp js-short-timestamp js-relative-timestamp" data-time="1470197337" data-time-ms="1470197337000" data-long-form="true" aria-hidden="true">14h</span>
+  new_date = driver.find_elements_by_class_name('_timestamp')[-1]
+  new_tstamp = float(new_date.get_attribute('data-time')) # fromtimestamp requires a float
+  earliest_date = datetime.fromtimestamp(new_tstamp)
+
+  print "new earliest date", earliest_date
 
 
 # get the text and parse with beautiful soup
