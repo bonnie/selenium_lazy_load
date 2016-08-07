@@ -8,7 +8,30 @@ URL = "https://twitter.com/search?f=tweets&vertical=default&q=cantaloupe&src=typ
 
 
 # the earliest tweet we want
-SEARCH_START = datetime(2016, 8, 3, 15) # year month day hour
+SEARCH_START = datetime(2016, 1, 1, 0)  # year month day hour
+
+
+def record_new_tweets():
+    """record the 20 tweets from the latest lazy-load, return earliest date"""
+
+    # 20 tweets loaded at a time
+    tweets = driver.find_elements_by_css_selector('li.js-stream-item')[-20:]
+
+    for tweet in tweets:
+        thtml = tweet.get_attribute('innerHTML')
+        soup = BeautifulSoup(thtml, 'html.parser')
+        tweet_id = tweet.get_attribute('data-item-id').encode("utf8", "ignore")
+        tweet_text = soup.find('div', {'class': 'js-tweet-text-container'}).get_text().encode("utf8", "ignore").strip()
+        tweeter = soup.find('span', {'class': 'js-action-profile-name'}).get_text().encode("utf8", "ignore")
+
+        tstamp = soup.find('span', {'class': '_timestamp'})['data-time']
+        tstamp_datetime = datetime.fromtimestamp(float(tstamp))
+        tstamp_date = datetime.strftime(tstamp_datetime, '%Y-%m-%d %H:%M:%S')
+
+        outfile.write('|'.join([tweet_id, tstamp_date, tweet_text, tweeter]) + '\n')
+
+    # update the new earliest date
+    return tstamp_datetime
 
 # got javascript to deal with infinite scroll from
 # http://forumsqa.com/question/help-me-to-locate-an-weblement/
@@ -17,61 +40,36 @@ SEARCH_START = datetime(2016, 8, 3, 15) # year month day hour
 driver = webdriver.Firefox()
 
 # internet here is slow
-driver.implicitly_wait(20) # seconds
+driver.implicitly_wait(20)  # seconds
 
 driver.get(URL)
 
-# track whether we've reached the start of our search
-# for now, we'll assume the earliest tweet we've seen so far is now
-earliest_date = datetime.now()
 
 i = 0
 
+# record the results as we get them in an outfile
+outfile = open('cantaloupe_tweets.txt', 'w')
+
+# header line
+outfile.write('TWEET_ID|TSTAMP|TWEET_TEXT|TWEETER\n')
+
+# record the initial 20 tweets:
+earliest_date = record_new_tweets()
 
 while earliest_date > SEARCH_START:
 
-  print "iteration", i
-  i += 1
+    i += 1
 
-  # scroll the window to get more tweets
-  driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+    # scroll the window to get more tweets
+    driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
 
-  # wait for the reload
-  sleep(5)
+    # wait for the reload
+    sleep(3)
 
-#   # if it didn't reload because of slowness
-#   if :
-#     <a role="button" href="#" class="try-again-after-whale">Try again</a>
-#     continue
+    # record tweets since last time
+    earliest_date = record_new_tweets()
 
+    print "iteration", i, "earliest date:", earliest_date
 
-  text = driver.page_source.encode("utf8","ignore")
-
-  print "lines of text", len(text.split('\n'))
-
-  # update earliest date
-  # <span class="_timestamp js-short-timestamp js-relative-timestamp" data-time="1470197337" data-time-ms="1470197337000" data-long-form="true" aria-hidden="true">14h</span>
-  new_dates = driver.find_elements_by_class_name('_timestamp')
-  new_date = new_dates[-1]
-
-  print "number of dates", len(new_dates)
-
-  new_tstamp = float(new_date.get_attribute('data-time')) # fromtimestamp requires a float
-  earliest_date = datetime.fromtimestamp(new_tstamp)
-
-  print "new earliest date", earliest_date
-
-
-# get the text and parse with beautiful soup
-html_text = driver.page_source.encode("utf8","ignore")
-
-soup = BeautifulSoup(html_text, 'html.parser')
-
-tweets = soup.find_all('div', { 'class': 'js-tweet-text-container'})
-
-for tweet in tweets: 
-  print '[', tweet.get_text(), ']'
-
-
-
-        # <div class="js-tweet-text-container">
+# cleanup
+outfile.close()
